@@ -41,14 +41,12 @@ public class TodoServer {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
              PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
             
-            // Lire la première ligne de la requête HTTP
             String requestLine = in.readLine();
             if (requestLine == null) {
                 sendErrorResponse(out, "Requête invalide");
                 return;
             }
 
-            // Parser la requête
             String[] parts = requestLine.split(" ");
             if (parts.length < 2) {
                 sendErrorResponse(out, "Format de requête invalide");
@@ -58,25 +56,24 @@ public class TodoServer {
             String method = parts[0];
             String path = parts[1];
 
-            // Lire les headers HTTP et le body pour POST
-            String line;
             StringBuilder body = new StringBuilder();
-            boolean readingBody = false;
             int contentLength = 0;
             
-            while ((line = in.readLine()) != null) {
-                if (line.isEmpty() && !readingBody) {
-                    readingBody = true;
-                    continue;
-                }
-                if (readingBody) {
-                    body.append(line);
-                } else if (line.startsWith("Content-Length:")) {
+            String line;
+            while ((line = in.readLine()) != null && !line.isEmpty()) {
+                if (line.startsWith("Content-Length:")) {
                     contentLength = Integer.parseInt(line.substring(16).trim());
                 }
             }
+            
+            if (contentLength > 0) {
+                char[] buffer = new char[contentLength];
+                int bytesRead = in.read(buffer, 0, contentLength);
+                if (bytesRead > 0) {
+                    body.append(buffer, 0, bytesRead);
+                }
+            }
 
-            // Traiter la requête
             handleRequest(method, path, body.toString(), out);
 
         } catch (IOException e) {
